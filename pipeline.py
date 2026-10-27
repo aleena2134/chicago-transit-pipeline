@@ -1,8 +1,12 @@
 import os
+import boto3
 import requests
 import pandas as pd
 
 URL = "https://data.cityofchicago.org/resource/5neh-572f.json"
+BUCKET = "aleena-cta-pipeline"  # change to your exact bucket name
+S3_KEY = "ridership/cta_ridership.csv"
+LOCAL_PATH = "data/cta_ridership.csv"
 
 
 def extract(start_date="2023-01-01"):
@@ -34,9 +38,17 @@ def transform(df):
     return df
 
 
+def load(local_path):
+    """Upload the clean CSV to S3 using the least-privilege pipeline profile."""
+    s3 = boto3.Session(profile_name="pipeline").client("s3")
+    s3.upload_file(local_path, BUCKET, S3_KEY)
+    print(f"Uploaded to s3://{BUCKET}/{S3_KEY}")
+
+
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
     raw = extract()
     clean = transform(raw)
-    clean.to_csv("data/cta_ridership.csv", index=False)
-    print("Saved data/cta_ridership.csv")
+    clean.to_csv(LOCAL_PATH, index=False)
+    print(f"Saved {LOCAL_PATH}")
+    load(LOCAL_PATH)
